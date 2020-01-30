@@ -149,6 +149,15 @@ def main(argv):
                         #use_multiprocessing=True,
                         workers=32
                         )
+    '''
+    model.fit(generator = train_data,
+              epochs=50, 
+              validation_data=val_data,
+              #use_multiprocessing=True,
+              workers=32
+              )
+
+    '''
 
 if __name__ == "__main__":
     if len(sys.argv)>=1:
