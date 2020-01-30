@@ -8,21 +8,17 @@ Created on Tue Jan 21 21:02:18 2020
 
 import sys
 import os
+import random
+
 import tensorflow as tf
 from tensorflow.keras import datasets, layers, models, regularizers
 import tensorflow.keras.backend as K
-from datagen import DataGenerator
+from tensorflow.keras.optimizers import Adam
 print(tf.__version__)
 print(sys.version)
+from datagen import DataGenerator
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
-
-#(train_images, train_labels), (test_images, test_labels) = datasets.cifar10.load_data()
-
-
-#total_train_step = len(train_images)
-#training_batch_size = 10
-
 
 IMAGE_SIZE = 64 
 
@@ -37,19 +33,32 @@ def SearchDirectory(ret,directory,filename):
 
 
 def main(argv):
-    train_datalist = []
-    SearchDirectory(train_datalist,argv[1],'.jpg')
-    SearchDirectory(train_datalist,argv[1],'.png')
-    SearchDirectory(train_datalist,argv[1],'.gif')
+    datalist = []
+    SearchDirectory(datalist,argv[1],'.jpeg')
+    #SearchDirectory(datalist,argv[1],'.jpg')
+    #SearchDirectory(datalist,argv[1],'.png')
+    #SearchDirectory(datalist,argv[1],'.gif')
 
+    random.seed(44)
+    random.shuffle(datalist)
+    train_datalist = datalist[100:]
+    val_datalist = datalist[:100]
+
+    train_data = DataGenerator(train_datalist,batch_size = 64,
+                               dim=(IMAGE_SIZE,IMAGE_SIZE,3),
+                               n_classes=150,
+                               shuffle=True)
+
+    val_data = DataGenerator(val_datalist)
+   
+    '''
     test_datalist = []
     SearchDirectory(test_datalist,argv[2],'.jpg')
     SearchDirectory(test_datalist,argv[2],'.png')
     SearchDirectory(test_datalist,argv[2],'.gif')
 
-    train_data = DataGenerator(train_datalist,batch_size = 64,dim=(IMAGE_SIZE,IMAGE_SIZE,3),n_classes=8,shuffle=True)
     val_data = DataGenerator(test_datalist)
-     
+    ''' 
 
     """**MOBILE NET**"""
     
@@ -79,6 +88,7 @@ def main(argv):
     model.add(layers.BatchNormalization())
     model.add(layers.Activation('relu'))
     
+    '''
     model.add(layers.DepthwiseConv2D((3,3),padding='same',strides=(2,2))) # output depth, kernel size
     model.add(layers.BatchNormalization())
     model.add(layers.Activation('relu'))
@@ -99,7 +109,7 @@ def main(argv):
     model.add(layers.Conv2D(256,(3,3),padding='same')) # output depth, kernel size
     model.add(layers.BatchNormalization())
     model.add(layers.Activation('relu'))
-    
+
     for i in range(5):
       model.add(layers.DepthwiseConv2D((3,3),padding='same')) # output depth, kernel size
       model.add(layers.BatchNormalization())
@@ -107,40 +117,41 @@ def main(argv):
       model.add(layers.Conv2D(512,(3,3),padding='same')) # output depth, kernel size
       model.add(layers.BatchNormalization())
       model.add(layers.Activation('relu'))
+
+    model.add(layers.DepthwiseConv2D((3,3),padding='same',strides=(2,2))) # output depth, kernel size
+    model.add(layers.BatchNormalization())
+    model.add(layers.Activation('relu'))
+    model.add(layers.Conv2D(128,(3,3),padding='same')) # output depth, kernel size
+    model.add(layers.BatchNormalization())
+    model.add(layers.Activation('relu'))
+    '''
     
     model.add(layers.DepthwiseConv2D((3,3),padding='same',strides=(2,2))) # output depth, kernel size
     model.add(layers.BatchNormalization())
     model.add(layers.Activation('relu'))
-    model.add(layers.Conv2D(1024,(3,3),padding='same')) # output depth, kernel size
+    model.add(layers.Conv2D(128,(3,3),padding='same')) # output depth, kernel size
     model.add(layers.BatchNormalization())
     model.add(layers.Activation('relu'))
     
-    model.add(layers.DepthwiseConv2D((3,3),padding='same',strides=(2,2))) # output depth, kernel size
-    model.add(layers.BatchNormalization())
-    model.add(layers.Activation('relu'))
-    model.add(layers.Conv2D(1024,(3,3),padding='same')) # output depth, kernel size
-    model.add(layers.BatchNormalization())
-    model.add(layers.Activation('relu'))
-    
-    #model.add(layers.AveragePooling2D((2,2)))
+    model.add(layers.AveragePooling2D((2,2)))
     model.add(layers.Flatten())
-    model.add(layers.Dense(1000,activation='relu'))
-    model.add(layers.Dense(9,activation='softmax'))
+    model.add(layers.Dense(50,activation='relu'))
+    model.add(layers.Dense(150,activation='softmax'))
     model.summary()
     
-    model.compile(optimizer='adam',
+    model.compile(optimizer=Adam(lr=1e-3),
                   loss='sparse_categorical_crossentropy',
                   metrics=['accuracy'])
     #model.fit(train_data,epochs=50, validation_data=val_data)
     model.fit_generator(generator = train_data,
                         epochs=50, 
-                        validation_data=val_data
+                        validation_data=val_data,
                         #use_multiprocessing=True,
-                        #workers=1
+                        workers=32
                         )
 
 if __name__ == "__main__":
-    if len(sys.argv)>=2:
+    if len(sys.argv)>=1:
         main(sys.argv)
     else:
         print('usage: poke.py train_data_path val_data_path')

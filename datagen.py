@@ -1,17 +1,35 @@
 import numpy as np
 import tensorflow as tf
 import cv2
+import io
+from PIL import Image,ImageCms
+
+
+def convert_to_srgb(img):
+    '''Convert PIL image to sRGB color space (if possible)'''
+    icc = img.info.get('icc_profile', '')
+    if icc:
+        io_handle = io.BytesIO(icc)     # virtual file
+        src_profile = ImageCms.ImageCmsProfile(io_handle)
+        dst_profile = ImageCms.createProfile('sRGB')
+        img = ImageCms.profileToProfile(img, src_profile, dst_profile)
+    return img
+
 
 def decode_img(ID,IMG_WIDTH,IMG_HEIGHT):
+  #with Image.open(ID) as img:
   with open(ID,'rb') as img:
+      #img = convert_to_srgb(img)
       img = np.array(img.read())
       # convert the compressed string to a 3D uint8 tensor
-      #img = tf.image.decode_jpeg(img, channels=3)
-      img = tf.image.decode_image(img, channels=3)
+      img = tf.image.decode_jpeg(img, channels=3)
+      #img = tf.image.decode_image(img, channels=3)
+      #img = tf.image.decode_png(img, channels=3)
       # Use `convert_image_dtype` to convert to floats in the [0,1] range.
-      img = tf.image.convert_image_dtype(img, tf.float32)
+      #img = tf.image.convert_image_dtype(img, tf.float32)
       # resize the image to the desired size.
       return tf.image.resize(img, [IMG_WIDTH, IMG_HEIGHT])
+
 
 class DataGenerator(tf.keras.utils.Sequence):
     'Generates data for Keras'
@@ -61,7 +79,7 @@ class DataGenerator(tf.keras.utils.Sequence):
         for i, ID in enumerate(list_IDs_temp):
             # Store sample
             #X[i,] = np.load('data/' + ID + '.npy')
-            x = decode_img(ID,self.dim[0],self.dim[1])
+            x = decode_img(ID,self.dim[0],self.dim[1])#/255.0
             X[i,] = x
             # Store class
             label = int( ID.split('/')[-1][:3])-1
